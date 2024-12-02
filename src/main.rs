@@ -1,11 +1,9 @@
 use scanner::Scanner;
 use std::{
-    borrow::Borrow,
     env, fs,
     io::{self, BufRead},
     process,
 };
-use token::Token;
 
 mod scanner;
 mod token;
@@ -65,13 +63,13 @@ fn main() {
             println!("{}", token.to_string());
         }
     }
+}
 
-    fn error(line: u32, message: String) {
-        report(line, "", message);
-    }
+pub fn error(line: u32, message: &str) {
+    report(line, "", message);
+}
 
-    fn report(line: u32, where_: &str, message: String) {
-        eprint!("[line {line}] Error {where_}: {message}");
-        unsafe { HAD_ERROR = true };
-    }
+fn report(line: u32, _where: &str, message: &str) {
+    println!("[line  ${line}] Error ${_where} : ${message}",);
+    unsafe { HAD_ERROR = true };
 }

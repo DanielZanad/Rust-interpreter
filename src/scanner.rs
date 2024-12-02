@@ -1,8 +1,8 @@
 use std::cell::{Ref, RefCell};
 
-use crate::token::Token;
-
+use crate::error;
 use crate::token::Literal;
+use crate::token::Token;
 use crate::token_type::*;
 
 pub struct Scanner {
@@ -52,17 +52,93 @@ impl Scanner {
             '+' => self.add_token_nil(TokenType::PLUS),
             ';' => self.add_token_nil(TokenType::SEMICOLON),
             '*' => self.add_token_nil(TokenType::STAR),
-            _ => {}
+            '!' => {
+                let lexeme = if self.match_lexeme('=') {
+                    TokenType::EQUAL_EQUAL
+                } else {
+                    TokenType::EQUAL
+                };
+
+                self.add_token_nil(lexeme);
+            }
+            '=' => {
+                let lexeme = if self.match_lexeme('=') {
+                    TokenType::EQUAL_EQUAL
+                } else {
+                    TokenType::EQUAL
+                };
+                self.add_token_nil(lexeme);
+            }
+            '<' => {
+                let lexeme = if self.match_lexeme('=') {
+                    TokenType::EQUAL_EQUAL
+                } else {
+                    TokenType::EQUAL
+                };
+                self.add_token_nil(lexeme);
+            }
+            '>' => {
+                let lexeme = if self.match_lexeme('=') {
+                    TokenType::EQUAL_EQUAL
+                } else {
+                    TokenType::EQUAL
+                };
+                self.add_token_nil(lexeme);
+            }
+            '/' => {
+                if self.match_lexeme('/') {
+                    loop {
+                        if self.peek() != '\n' && !self.is_at_end() {
+                            self.advance();
+                        } else {
+                            self.add_token_nil(TokenType::SLASH);
+                        }
+                        break;
+                    }
+                };
+            }
+            ' ' => {}
+            '\r' => {}
+            '\t' => {}
+            '\n' => self.line += 1,
+            _ => {
+                error(self.line, "Unexpected character");
+            }
         }
     }
 
-    fn advance(&mut self) ->char {
+    fn match_lexeme(&mut self, expected: char) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+        if let Some(current) = self.source.chars().nth(self.current as usize) {
+            if current != expected {
+                return false;
+            }
+        };
+
+        self.current += 1;
+        true
+    }
+
+    fn peek(&self) -> char {
+        if self.is_at_end() {
+            return '\0';
+        }
+        if let Some(current) = self.source.chars().nth(self.current as usize) {
+            return current;
+        } else {
+            return '\0';
+        }
+    }
+
+    fn advance(&mut self) -> char {
         let current_char = self.source.chars().nth(self.current as usize);
         self.current += 1;
 
         match current_char {
             Some(c) => c,
-            None => '\0'
+            None => '\0',
         }
     }
 
@@ -72,9 +148,10 @@ impl Scanner {
 
     fn add_token_literal(&mut self, _type: TokenType, literal: Literal) {
         let text = self.source[self.start as usize..self.current as usize].to_string();
-        self.tokens.borrow_mut().push(Token::new(_type, text, literal, self.line));
+        self.tokens
+            .borrow_mut()
+            .push(Token::new(_type, text, literal, self.line));
     }
-
 
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len() as u32
