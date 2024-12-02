@@ -1,3 +1,77 @@
+use scanner::Scanner;
+use std::{
+    borrow::Borrow,
+    env, fs,
+    io::{self, BufRead},
+    process,
+};
+use token::Token;
+
+mod scanner;
+mod token;
+mod token_type;
+
+static mut HAD_ERROR: bool = false;
+
 fn main() {
-    println!("Hello, world!");
+    let args: Vec<String> = env::args().collect();
+    println!("{}", args.len());
+    if args.len() > 2 {
+        println!("Usage: rlox [script]");
+        process::exit(64);
+    } else if env::args().len() == 2 {
+        match args.get(1) {
+            Some(file_name) => run_file(file_name),
+            None => println!("invalid argument"),
+        }
+    } else {
+        run_prompt();
+    }
+
+    fn run_file(path: &String) {
+        let contents = fs::read_to_string(path).expect("Should have been able to read the file");
+        run(contents);
+
+        unsafe {
+            // Indicate an error in the exit code;
+            if HAD_ERROR {
+                process::exit(65)
+            }
+        }
+    }
+
+    fn run_prompt() {
+        let stdin = io::stdin();
+        for line in stdin.lock().lines() {
+            print!("> ");
+            match line {
+                Ok(line) => {
+                    run(line);
+
+                    unsafe {
+                        HAD_ERROR = false;
+                    }
+                }
+                Err(e) => println!("Invalid argument"),
+            }
+        }
+    }
+
+    fn run(source: String) {
+        let mut scanner = Scanner::new(source);
+        let tokens = scanner.scan_tokens();
+
+        for token in tokens.iter() {
+            println!("{}", token.to_string());
+        }
+    }
+
+    fn error(line: u32, message: String) {
+        report(line, "", message);
+    }
+
+    fn report(line: u32, where_: &str, message: String) {
+        eprint!("[line {line}] Error {where_}: {message}");
+        unsafe { HAD_ERROR = true };
+    }
 }
