@@ -1,7 +1,7 @@
 use scanner::Scanner;
 use std::{
     env, fs,
-    io::{self, BufRead},
+    io::{self},
     process,
 };
 
@@ -13,7 +13,6 @@ static mut HAD_ERROR: bool = false;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    println!("{}", args.len());
     if args.len() > 2 {
         println!("Usage: rlox [script]");
         process::exit(64);
@@ -39,18 +38,16 @@ fn main() {
     }
 
     fn run_prompt() {
-        let stdin = io::stdin();
-        for line in stdin.lock().lines() {
+        loop {
             print!("> ");
-            match line {
-                Ok(line) => {
-                    run(line);
+            let mut line = String::new();
+            io::stdin()
+                .read_line(&mut line)
+                .expect("Failed to read line");
 
-                    unsafe {
-                        HAD_ERROR = false;
-                    }
-                }
-                Err(e) => println!("Invalid argument"),
+            run(line);
+            unsafe {
+                HAD_ERROR = false;
             }
         }
     }
@@ -66,7 +63,7 @@ fn main() {
 }
 
 pub fn error(line: u32, message: &str) {
-    report(line, "", message); 
+    report(line, "", message);
 }
 
 fn report(line: u32, _where: &str, message: &str) {

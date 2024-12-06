@@ -1,3 +1,4 @@
+#[derive(Clone, Copy)]
 #[derive(Debug)]
 pub enum TokenType {
     // Single-character tokens.
