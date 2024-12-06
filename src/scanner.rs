@@ -101,10 +101,32 @@ impl Scanner {
             '\r' => {}
             '\t' => {}
             '\n' => self.line += 1,
+            '"' =>  {
+                self.string();
+            }
             _ => {
                 error(self.line, "Unexpected character");
             }
         }
+    }
+
+    fn string(&mut self) {
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {self.line = self.line + 1}
+            self.advance();
+        }
+
+        if self.is_at_end() {
+            error(self.line, "Unterminated string");
+            return
+        }
+
+        // The closing "
+        self.advance();
+
+        // trim the surrounding quotes
+        let value = self.source[(self.start + 1) as usize..(self.current - 1) as usize].to_string();
+        self.add_token_literal(TokenType::STRING, Literal::StringLiteral(value));
     }
 
     fn match_lexeme(&mut self, expected: char) -> bool {

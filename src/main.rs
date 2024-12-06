@@ -66,7 +66,7 @@ fn main() {
 }
 
 pub fn error(line: u32, message: &str) {
-    report(line, "", message);
+    report(line, "", message); 
 }
 
 fn report(line: u32, _where: &str, message: &str) {
