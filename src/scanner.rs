@@ -115,10 +115,22 @@ impl Scanner<'_> {
                             self.advance();
                         } else {
                             self.add_token_nil(TokenType::SLASH);
+                            break;
                         }
-                        break;
                     }
-                };
+                } else if self.match_lexeme('*') {
+                    loop {
+                        if self.peek() == '\n' {
+                            self.line += 1;
+                        }
+                        if self.peek() != '/' && !self.is_at_end() {
+                            self.advance();
+                        } else {
+                            self.add_token_nil(TokenType::SLASH);
+                            break;
+                        }
+                    }
+                }
             }
             ' ' => {}
             '\r' => {}
@@ -146,7 +158,7 @@ impl Scanner<'_> {
         let text = self.source[self.start as usize..self.current as usize].to_string();
         let _type = self.keywords.get(text.as_str());
 
-        if let Some(_type) = _type  {
+        if let Some(_type) = _type {
             self.add_token_nil(_type.clone());
         }
 
