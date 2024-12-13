@@ -6,12 +6,12 @@ pub enum Literal {
     StringLiteral(String),
     Nil,
 }
-
+#[derive(Debug)]
 pub struct Token {
-    _type: TokenType,
-    lexeme: String,
-    literal: Literal,
-    line: u32,
+    pub _type: TokenType,
+    pub lexeme: String,
+    pub literal: Literal,
+    pub line: u32,
 }
 
 impl Token {

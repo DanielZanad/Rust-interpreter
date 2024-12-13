@@ -8,6 +8,8 @@ use std::{
 mod scanner;
 mod token;
 mod token_type;
+mod expr;
+mod ast_printer;
 
 static mut HAD_ERROR: bool = false;
 
