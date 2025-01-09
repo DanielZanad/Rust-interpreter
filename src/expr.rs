@@ -1,9 +1,6 @@
-use crate::token::Token;
-
 pub mod expr {
-    use std::rc::Rc;
-
     use crate::token::{Literal, Token};
+    use std::rc::Rc;
 
     #[derive(Debug)]
     pub enum Expr {
@@ -44,7 +41,6 @@ pub mod expr {
         }
     }
 
-
     impl Literal {
         pub fn accept<R>(&self, visitor: &dyn Visitor<R>) -> R {
             visitor.visit_literal_expr(self)
@@ -56,11 +52,10 @@ pub mod expr {
         pub operator: Token,
         pub right: Expr,
     }
-
+    
     impl Unary {
         pub fn accept<R>(&self, visitor: &dyn Visitor<R>) -> R {
             visitor.visit_unary_expr(self)
         }
     }
-
 }
