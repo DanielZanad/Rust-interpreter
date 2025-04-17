@@ -1,5 +1,4 @@
-#[derive(Clone, Copy)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum TokenType {
     // Single-character tokens.
     LEFT_PAREN,

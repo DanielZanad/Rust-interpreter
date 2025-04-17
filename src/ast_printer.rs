@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{
     expr::{Accept, Binary, Expr, Grouping, Literal, Unary, Visitor},
-    token::Literal as LiteralValue,
+    literal_object::Literal as LiteralValue,
     token::Token,
 };
 

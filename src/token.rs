@@ -1,23 +1,17 @@
-use crate::token_type::TokenType;
+use crate::{literal_object::Literal, token_type::TokenType};
 
 #[derive(Debug)]
-pub enum Literal {
-    Number(f64),
-    String(String),
-    Null,
-}
-#[derive(Debug)]
 pub struct Token {
-    pub _type: TokenType,
+    pub type_: TokenType,
     pub lexeme: String,
     pub literal: Literal,
-    pub line: u32,
+    pub line: u64,
 }
 
 impl Token {
-    pub fn new(_type: TokenType, lexeme: String, literal: Literal, line: u32) -> Self {
+    pub fn new(type_: TokenType, lexeme: String, literal: Literal, line: u64) -> Self {
         Token {
-            _type,
+            type_,
             lexeme,
             literal,
             line,
@@ -25,6 +19,6 @@ impl Token {
     }
 
     pub fn to_string(&self) -> String {
-        format!("{:?} {} {:?}", self._type, self.lexeme, self.literal)
+        return format!("{:?} {} {:?}", self.type_, self.lexeme, self.literal);
     }
 }

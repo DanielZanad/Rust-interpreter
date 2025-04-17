@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{token::Literal as LiteralValue, token::Token};
+use crate::{literal_object::Literal as LiteralValue, token::Token};
 
 pub enum Expr {
     Binary(Rc<Binary>),
