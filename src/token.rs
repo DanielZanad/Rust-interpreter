@@ -2,9 +2,9 @@ use crate::token_type::TokenType;
 
 #[derive(Debug)]
 pub enum Literal {
-    NumberLiteral(f64),
-    StringLiteral(String),
-    Nil,
+    Number(f64),
+    String(String),
+    Null,
 }
 #[derive(Debug)]
 pub struct Token {

@@ -55,7 +55,7 @@ impl Scanner<'_> {
         self.tokens.borrow_mut().push(Token::new(
             TokenType::EOF,
             String::new(),
-            Literal::Nil,
+            Literal::Null,
             self.line,
         ));
         return self.tokens.borrow();
@@ -183,7 +183,7 @@ impl Scanner<'_> {
 
         // trim the surrounding quotes
         let value = self.source[(self.start + 1) as usize..(self.current - 1) as usize].to_string();
-        self.add_token_literal(TokenType::STRING, Literal::StringLiteral(value));
+        self.add_token_literal(TokenType::STRING, Literal::String(value));
     }
 
     fn match_lexeme(&mut self, expected: char) -> bool {
@@ -251,7 +251,7 @@ impl Scanner<'_> {
         let number = self.source[self.start as usize..self.current as usize]
             .parse::<f64>()
             .unwrap();
-        self.add_token_literal(TokenType::NUMBER, Literal::NumberLiteral(number));
+        self.add_token_literal(TokenType::NUMBER, Literal::Number(number));
     }
 
     fn advance(&mut self) -> char {
@@ -265,7 +265,7 @@ impl Scanner<'_> {
     }
 
     fn add_token_nil(&mut self, _type: TokenType) {
-        self.add_token_literal(_type, Literal::Nil);
+        self.add_token_literal(_type, Literal::Null);
     }
 
     fn add_token_literal(&mut self, _type: TokenType, literal: Literal) {
