@@ -41,21 +41,21 @@ pub mod expr {
         }
     }
 
-    impl Literal {
-        pub fn accept<R>(&self, visitor: &dyn Visitor<R>) -> R {
-            visitor.visit_literal_expr(self)
-        }
-    }
-
     #[derive(Debug)]
     pub struct Unary {
         pub operator: Token,
         pub right: Expr,
     }
-    
+
     impl Unary {
         pub fn accept<R>(&self, visitor: &dyn Visitor<R>) -> R {
             visitor.visit_unary_expr(self)
+        }
+    }
+
+    impl Literal {
+        pub fn accept<R>(&self, visitor: &dyn Visitor<R>) -> R {
+            visitor.visit_literal_expr(self)
         }
     }
 }

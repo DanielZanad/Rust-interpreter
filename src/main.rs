@@ -5,11 +5,11 @@ use std::{
     process,
 };
 
+mod ast_printer;
+mod expr;
 mod scanner;
 mod token;
 mod token_type;
-mod expr;
-mod ast_printer;
 
 static mut HAD_ERROR: bool = false;
 
