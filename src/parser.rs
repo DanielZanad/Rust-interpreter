@@ -13,17 +13,22 @@ pub struct Parser {
 }
 
 pub struct ParseError {}
+
+// TODO: Change result into panic!()
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Expr {
-        self.expression()
+    pub fn parse(&mut self) -> Option<Expr> {
+        match self.expression() {
+            Ok(expr) => return Some(expr),
+            Err(_) => None,
+        }
     }
 
-    fn expression(&mut self) -> Expr {
-        return self.equality().unwrap();
+    fn expression(&mut self) -> Result<Expr, Error> {
+        return self.equality();
     }
 
     fn equality(&mut self) -> Result<Expr, Error> {
@@ -138,15 +143,23 @@ impl Parser {
 
         if self.match_token(vec![LEFT_PAREN]) {
             let expr = self.expression();
-            self.consume(RIGHT_BRACE, "Expect ')' after expression");
-            return Ok(Expr::Grouping(Rc::new(Grouping::new(expr))));
+            match self.consume(RIGHT_PAREN, "Expect ')' after expression") {
+                Ok(_) => {
+                    return Ok(Expr::Grouping(Rc::new(Grouping::new(expr?))));
+                }
+                Err(error) => return Err(error),
+            };
         }
-
-        Err(self.error(self.peek(), "Expect expression"))
+        self.error(self.peek(), "Expect expression");
+        Err(Error)
     }
 
     fn consume(&mut self, type_: TokenType, message: &'static str) -> Result<&Token, Error> {
+        println!("Consume type: {:?}", type_);
+        let result = self.check(type_);
+        println!("Result self.check {:?}", result);
         if self.check(type_) {
+            println!("Right paren");
             return Ok(self.advance());
         }
         Err(self.error(self.peek(), message))
@@ -207,14 +220,17 @@ impl Parser {
 
     fn is_at_end(&self) -> bool {
         let _type = self.peek().type_;
+        println!("{:?}", _type);
         _type == TokenType::EOF
     }
     fn peek(&self) -> &Token {
         let token = self.tokens.get(self.current as usize).unwrap();
+        println!("Token peek: {:?}", token);
         token
     }
     fn previous(&mut self) -> &Token {
         let token = self.tokens.get((self.current as usize) - 1).unwrap();
+        println!("Token peek: {:?}", token);
         token
     }
 }

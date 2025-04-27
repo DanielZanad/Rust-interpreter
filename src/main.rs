@@ -1,6 +1,6 @@
 use std::{env, fs, process::exit};
 
-use ast_printer::{print_ast, AstPrinter};
+use ast_printer::AstPrinter;
 use parser::Parser;
 use scanner::Scanner;
 use token::Token;
@@ -50,7 +50,7 @@ fn run(source: &str) {
     let tokens = scanner.scan_tokens();
     // Todo: add lifetimes to avoid clone
     let mut parser = Parser::new(tokens.clone());
-    let expression = parser.parse();
+    let expression = parser.parse().unwrap();
 
     unsafe {
         if HAD_ERROR {
@@ -63,9 +63,8 @@ fn run(source: &str) {
 }
 
 fn run_prompt() {
-    let mut input = String::new();
-
     loop {
+        let mut input = String::new();
         print!("> ");
         std::io::stdin()
             .read_line(&mut input)
@@ -73,6 +72,8 @@ fn run_prompt() {
         if input.is_empty() {
             break;
         }
+
+        println!("Input: {}", input);
         run(&input);
         unsafe {
             HAD_ERROR = false;

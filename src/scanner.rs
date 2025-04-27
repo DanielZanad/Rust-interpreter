@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::LineWriter};
+use std::collections::HashMap;
 
 use crate::{literal_object::Literal, token::Token, token_type::TokenType};
 
