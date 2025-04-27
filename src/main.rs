@@ -1,34 +1,36 @@
 use std::{env, fs, process::exit};
 
-use ast_printer::print_ast;
+use ast_printer::{print_ast, AstPrinter};
+use parser::Parser;
 use scanner::Scanner;
 use token::Token;
+use token_type::TokenType;
 
 static mut HAD_ERROR: bool = false;
 
 mod ast_printer;
 mod expr;
 mod literal_object;
+mod parser;
 mod scanner;
 mod token;
 mod token_type;
 
 fn main() {
-    print_ast();
-    // let args = env::args();
-    // if args.len() > 2 {
-    //     println!("Usage: rlox [script]");
-    //     exit(64);
-    // } else if args.len() == 2 {
-    //     let file_name = args.last();
-    //     match file_name {
-    //         Some(file) => run_file(&file),
-    //         None => {}
-    //     }
-    //     // run_file(args.)
-    // } else {
-    //     run_prompt();
-    // }
+    let args = env::args();
+    if args.len() > 2 {
+        println!("Usage: rlox [script]");
+        exit(64);
+    } else if args.len() == 2 {
+        let file_name = args.last();
+        match file_name {
+            Some(file) => run_file(&file),
+            None => {}
+        }
+        // run_file(args.)
+    } else {
+        run_prompt();
+    }
 }
 
 fn run_file(path: &str) {
@@ -46,10 +48,18 @@ fn run_file(path: &str) {
 fn run(source: &str) {
     let mut scanner = Scanner::default(source);
     let tokens = scanner.scan_tokens();
+    // Todo: add lifetimes to avoid clone
+    let mut parser = Parser::new(tokens.clone());
+    let expression = parser.parse();
 
-    for token in tokens {
-        println!("{}", token.to_string())
+    unsafe {
+        if HAD_ERROR {
+            return;
+        }
     }
+
+    let printer = AstPrinter;
+    println!("{}", AstPrinter::print(&printer, &expression))
 }
 
 fn run_prompt() {
@@ -76,4 +86,12 @@ pub fn error(line: u64, message: &str) {
 
 fn report(line: u64, where_: &str, message: &str) {
     println!("[line   {}  ] Error  {}  : {}", line, where_, message);
+}
+
+fn token_error(token: &Token, message: &'static str) {
+    if token.type_ == TokenType::EOF {
+        report(token.line, " at end", message);
+    } else {
+        report(token.line, &format!(" at '{}'", &token.lexeme), message);
+    }
 }

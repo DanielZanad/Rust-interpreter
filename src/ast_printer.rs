@@ -22,6 +22,7 @@ impl Visitor<String> for AstPrinter {
             LiteralValue::Null => String::from("null"),
             LiteralValue::Number(number) => format!("{}", number),
             LiteralValue::String(string) => format!("{}", string),
+            LiteralValue::Boolean(boolean) => format!("{}", boolean),
         }
     }
 
