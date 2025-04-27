@@ -155,11 +155,7 @@ impl Parser {
     }
 
     fn consume(&mut self, type_: TokenType, message: &'static str) -> Result<&Token, Error> {
-        println!("Consume type: {:?}", type_);
-        let result = self.check(type_);
-        println!("Result self.check {:?}", result);
         if self.check(type_) {
-            println!("Right paren");
             return Ok(self.advance());
         }
         Err(self.error(self.peek(), message))
@@ -220,17 +216,14 @@ impl Parser {
 
     fn is_at_end(&self) -> bool {
         let _type = self.peek().type_;
-        println!("{:?}", _type);
         _type == TokenType::EOF
     }
     fn peek(&self) -> &Token {
         let token = self.tokens.get(self.current as usize).unwrap();
-        println!("Token peek: {:?}", token);
         token
     }
     fn previous(&mut self) -> &Token {
         let token = self.tokens.get((self.current as usize) - 1).unwrap();
-        println!("Token peek: {:?}", token);
         token
     }
 }
