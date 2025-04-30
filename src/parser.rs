@@ -12,7 +12,11 @@ pub struct Parser {
     pub current: u32,
 }
 
-pub struct ParseError {}
+pub struct ParseError {
+    message: String,
+}
+
+impl ParseError {}
 
 // TODO: Change result into panic!()
 impl Parser {

@@ -10,6 +10,7 @@ static mut HAD_ERROR: bool = false;
 
 mod ast_printer;
 mod expr;
+mod interpreter;
 mod literal_object;
 mod parser;
 mod scanner;
