@@ -1,12 +1,14 @@
 use std::{env, fs, process::exit};
 
 use ast_printer::AstPrinter;
+use interpreter::{Interpreter, RuntimeError};
 use parser::Parser;
 use scanner::Scanner;
 use token::Token;
 use token_type::TokenType;
 
 static mut HAD_ERROR: bool = false;
+static mut HAD_RUNTIME_ERROR: bool = false;
 
 mod ast_printer;
 mod expr;
@@ -18,6 +20,7 @@ mod token;
 mod token_type;
 
 fn main() {
+    let interpreter: Interpreter = Interpreter::new();
     let args = env::args();
     if args.len() > 2 {
         println!("Usage: rlox [script]");
@@ -35,17 +38,18 @@ fn main() {
 }
 
 fn run_file(path: &str) {
-    let file = fs::read_to_string(path);
+    let file = fs::read_to_string(path).expect("Failed to read file");
+    run(&file);
 
-    match file {
-        Ok(file) => run(&file),
-        Err(_) => unsafe {
-            HAD_ERROR = true;
-            exit(65)
-        },
+    unsafe {
+        if HAD_ERROR {
+            exit(65);
+        }
+        if HAD_RUNTIME_ERROR {
+            exit(70);
+        }
     }
 }
-
 fn run(source: &str) {
     let mut scanner = Scanner::default(source);
     let tokens = scanner.scan_tokens();
@@ -53,14 +57,15 @@ fn run(source: &str) {
     let mut parser = Parser::new(tokens.clone());
     let expression = parser.parse().unwrap();
 
+    let interpreter: Interpreter = Interpreter::new();
+
     unsafe {
         if HAD_ERROR {
             return;
         }
     }
 
-    let printer = AstPrinter;
-    println!("{}", AstPrinter::print(&printer, &expression))
+    interpreter.interpret(expression);
 }
 
 fn run_prompt() {
@@ -84,6 +89,11 @@ fn run_prompt() {
 
 pub fn error(line: u64, message: &str) {
     report(line, "", message)
+}
+
+pub fn run_time_error(error: RuntimeError) {
+    println!("{} \n[line {}]", error.message, error.token.line);
+    unsafe { HAD_RUNTIME_ERROR = true }
 }
 
 fn report(line: u64, where_: &str, message: &str) {

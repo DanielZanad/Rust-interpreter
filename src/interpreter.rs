@@ -2,16 +2,19 @@ use std::fmt::Error;
 
 use crate::expr::{Accept, Expr, Visitor};
 use crate::literal_object::Literal;
+use crate::token::Token;
 use crate::token_type::TokenType;
 
 #[derive(Debug)]
 pub struct RuntimeError {
-    message: String,
+    pub token: Token,
+    pub message: String,
 }
 
 impl RuntimeError {
-    pub fn new(msg: &str) -> Self {
+    pub fn new(token: Token, msg: &str) -> Self {
         Self {
+            token,
             message: msg.to_string(),
         }
     }
@@ -25,32 +28,65 @@ impl Visitor<Result<Literal, RuntimeError>> for Interpreter {
         let right = self.evaluate(expr.right())?;
 
         match expr.operator().type_ {
-            TokenType::GREATER => self.eval_comparison_binary_op(left, right, |l, r| l > r, ">"),
-            TokenType::GREATER_EQUAL => {
-                self.eval_comparison_binary_op(left, right, |l, r| l >= r, ">")
+            TokenType::GREATER => self.eval_comparison_binary_op(
+                left,
+                right,
+                |l, r| l > r,
+                ">",
+                expr.operator().clone(),
+            ),
+            TokenType::GREATER_EQUAL => self.eval_comparison_binary_op(
+                left,
+                right,
+                |l, r| l >= r,
+                ">",
+                expr.operator().clone(),
+            ),
+            TokenType::LESS => self.eval_comparison_binary_op(
+                left,
+                right,
+                |l, r| l < r,
+                ">",
+                expr.operator().clone(),
+            ),
+            TokenType::LESS_EQUAL => self.eval_comparison_binary_op(
+                left,
+                right,
+                |l, r| l <= r,
+                ">",
+                expr.operator().clone(),
+            ),
+            TokenType::MINUS => {
+                self.eval_number_binary_op(left, right, |l, r| l - r, "-", expr.operator().clone())
             }
-            TokenType::LESS => self.eval_comparison_binary_op(left, right, |l, r| l < r, ">"),
-            TokenType::LESS_EQUAL => {
-                self.eval_comparison_binary_op(left, right, |l, r| l <= r, ">")
+            TokenType::SLASH => {
+                self.eval_number_binary_op(left, right, |l, r| l / r, "/", expr.operator().clone())
             }
-            TokenType::MINUS => self.eval_number_binary_op(left, right, |l, r| l - r, "-"),
-            TokenType::SLASH => self.eval_number_binary_op(left, right, |l, r| l / r, "/"),
-            TokenType::STAR => self.eval_number_binary_op(left, right, |l, r| l * r, "*"),
+            TokenType::STAR => {
+                self.eval_number_binary_op(left, right, |l, r| l * r, "*", expr.operator().clone())
+            }
             TokenType::PLUS => match (right, left) {
                 (Literal::Number(l), Literal::Number(r)) => self.eval_number_binary_op(
                     Literal::Number(l),
                     Literal::Number(r),
                     |l, r| l + r,
                     "+",
+                    expr.operator().clone(),
                 ),
                 (Literal::String(l), Literal::String(r)) => {
                     Ok(Literal::String(format!("{}{}", l, r)))
                 }
-                _ => Err(RuntimeError::new("Binary expression error")),
+                _ => Err(RuntimeError::new(
+                    expr.operator().clone(),
+                    "Operands must be two numbers or two strings",
+                )),
             },
             TokenType::BANG_EQUAL => Ok(Literal::Boolean(!self.is_equals(left, right))),
             TokenType::EQUAL_EQUAL => Ok(Literal::Boolean(!self.is_equals(left, right))),
-            _ => Err(RuntimeError::new("Binary expression error")),
+            _ => Err(RuntimeError::new(
+                expr.operator().clone(),
+                "Binary expression error",
+            )),
         }
     }
 
@@ -68,18 +104,41 @@ impl Visitor<Result<Literal, RuntimeError>> for Interpreter {
         match expr.operator().type_ {
             TokenType::MINUS => match right {
                 Ok(Literal::Number(n)) => return Ok(Literal::Number(-n)),
-                _ => Err(RuntimeError::new("Error casting number")),
+                _ => Err(RuntimeError::new(
+                    expr.operator().clone(),
+                    "Error casting number",
+                )),
             },
             TokenType::BANG => match right {
                 Ok(right) => return Ok(Literal::Boolean(self.is_truthy(right))),
-                _ => Err(RuntimeError::new("Unary expression error")),
+                _ => Err(RuntimeError::new(
+                    expr.operator().clone(),
+                    "Unary must have a valid value",
+                )),
             },
-            _ => Err(RuntimeError::new("Unary expression error")),
+            _ => Err(RuntimeError::new(
+                expr.operator().clone(),
+                "Unary expression error",
+            )),
         }
     }
 }
 
 impl Interpreter {
+    pub fn new() -> Self {
+        Interpreter {}
+    }
+
+    pub fn interpret(&self, expression: Expr) {
+        let value = self.evaluate(&expression);
+        let _ = match value {
+            Ok(value) => println!("{}", self.stringify(value)),
+            Err(err) => {
+                crate::run_time_error(err);
+            }
+        };
+    }
+
     fn evaluate(&self, expr: &Expr) -> Result<Literal, RuntimeError> {
         match expr {
             Expr::Binary(binary) => binary.accept(self),
@@ -103,13 +162,14 @@ impl Interpreter {
         right: Literal,
         op: F,
         op_name: &str,
+        token: Token,
     ) -> Result<Literal, RuntimeError> {
         match (left, right) {
             (Literal::Number(left), Literal::Number(right)) => Ok(Literal::Number(op(left, right))),
-            _ => Err(RuntimeError::new(&format!(
-                "Operator '{}' requires two numbers",
-                op_name
-            ))),
+            _ => Err(RuntimeError::new(
+                token,
+                &format!("Operator '{}' requires two numbers", op_name),
+            )),
         }
     }
 
@@ -119,15 +179,16 @@ impl Interpreter {
         right: Literal,
         op: F,
         op_name: &str,
+        token: Token,
     ) -> Result<Literal, RuntimeError> {
         match (left, right) {
             (Literal::Number(left), Literal::Number(right)) => {
                 Ok(Literal::Boolean(op(left, right)))
             }
-            _ => Err(RuntimeError::new(&format!(
-                "Operator '{}' requires two numbers",
-                op_name
-            ))),
+            _ => Err(RuntimeError::new(
+                token,
+                &format!("Operator '{}' requires two numbers", op_name),
+            )),
         }
     }
 
@@ -141,5 +202,22 @@ impl Interpreter {
         }
 
         left.eq(&right)
+    }
+
+    fn stringify(&self, value: Literal) -> String {
+        match value {
+            Literal::Null => return String::from("nil"),
+            Literal::Number(value) => {
+                let mut text = value.to_string();
+                if text.ends_with(".0") {
+                    text = text[..text.len() - 2].to_string();
+                }
+                return text;
+            }
+            Literal::String(str) => {
+                return str;
+            }
+            Literal::Boolean(bool) => return bool.to_string(),
+        }
     }
 }
