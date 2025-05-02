@@ -26,7 +26,6 @@ impl Visitor<Result<Literal, RuntimeError>> for Interpreter {
     fn visit_binary_expr(&self, expr: &crate::expr::Binary) -> Result<Literal, RuntimeError> {
         let left = self.evaluate(expr.left())?;
         let right = self.evaluate(expr.right())?;
-
         match expr.operator().type_ {
             TokenType::GREATER => self.eval_comparison_binary_op(
                 left,
@@ -39,21 +38,21 @@ impl Visitor<Result<Literal, RuntimeError>> for Interpreter {
                 left,
                 right,
                 |l, r| l >= r,
-                ">",
+                ">=",
                 expr.operator().clone(),
             ),
             TokenType::LESS => self.eval_comparison_binary_op(
                 left,
                 right,
                 |l, r| l < r,
-                ">",
+                "<",
                 expr.operator().clone(),
             ),
             TokenType::LESS_EQUAL => self.eval_comparison_binary_op(
                 left,
                 right,
                 |l, r| l <= r,
-                ">",
+                "<=",
                 expr.operator().clone(),
             ),
             TokenType::MINUS => {
@@ -82,7 +81,7 @@ impl Visitor<Result<Literal, RuntimeError>> for Interpreter {
                 )),
             },
             TokenType::BANG_EQUAL => Ok(Literal::Boolean(!self.is_equals(left, right))),
-            TokenType::EQUAL_EQUAL => Ok(Literal::Boolean(!self.is_equals(left, right))),
+            TokenType::EQUAL_EQUAL => Ok(Literal::Boolean(self.is_equals(left, right))),
             _ => Err(RuntimeError::new(
                 expr.operator().clone(),
                 "Binary expression error",
@@ -132,7 +131,7 @@ impl Interpreter {
     pub fn interpret(&self, expression: Expr) {
         let value = self.evaluate(&expression);
         let _ = match value {
-            Ok(value) => println!("{}", self.stringify(value)),
+            Ok(value) => println!("Value: {}", self.stringify(value)),
             Err(err) => {
                 crate::run_time_error(err);
             }

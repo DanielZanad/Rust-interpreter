@@ -55,17 +55,20 @@ fn run(source: &str) {
     let tokens = scanner.scan_tokens();
     // Todo: add lifetimes to avoid clone
     let mut parser = Parser::new(tokens.clone());
-    let expression = parser.parse().unwrap();
+    let expression = parser.parse();
 
-    let interpreter: Interpreter = Interpreter::new();
-
-    unsafe {
-        if HAD_ERROR {
-            return;
+    match expression {
+        Ok(expr) => {
+            let interpreter: Interpreter = Interpreter::new();
+            unsafe {
+                if HAD_ERROR {
+                    return;
+                }
+            }
+            interpreter.interpret(expr);
         }
+        Err(err) => println!("{:?}", err),
     }
-
-    interpreter.interpret(expression);
 }
 
 fn run_prompt() {

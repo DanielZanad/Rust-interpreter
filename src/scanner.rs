@@ -72,26 +72,26 @@ impl Scanner {
             Some('*') => self.add_token(TokenType::STAR),
             Some('!') => {
                 match self.match_lexeme('=') {
-                    true => TokenType::BANG_EQUAL,
-                    false => TokenType::BANG,
+                    true => self.add_token(TokenType::BANG_EQUAL),
+                    false => self.add_token(TokenType::BANG),
                 };
             }
             Some('=') => {
                 match self.match_lexeme('=') {
-                    true => TokenType::EQUAL_EQUAL,
-                    false => TokenType::EQUAL,
+                    true => self.add_token(TokenType::EQUAL_EQUAL),
+                    false => self.add_token(TokenType::EQUAL),
                 };
             }
             Some('<') => {
                 match self.match_lexeme('=') {
-                    true => TokenType::LESS_EQUAL,
-                    false => TokenType::LESS,
+                    true => self.add_token(TokenType::LESS_EQUAL),
+                    false => self.add_token(TokenType::LESS),
                 };
             }
             Some('>') => {
                 match self.match_lexeme('=') {
-                    true => TokenType::GREATER_EQUAL,
-                    false => TokenType::GREATER,
+                    true => self.add_token(TokenType::GREATER_EQUAL),
+                    false => self.add_token(TokenType::GREATER),
                 };
             }
             Some('/') => {
@@ -214,7 +214,6 @@ impl Scanner {
         let start = self.start as usize + 1;
         let current = self.current as usize - 1;
         let value = &self.source[start..current];
-        println!("{}", value);
         self.add_token_literal(TokenType::STRING, Literal::String(value.to_string()));
     }
 
@@ -222,6 +221,7 @@ impl Scanner {
         if self.is_at_end() {
             return false;
         }
+
         if self.source.chars().nth(self.current as usize).unwrap() != expected {
             return false;
         }

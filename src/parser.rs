@@ -12,22 +12,28 @@ pub struct Parser {
     pub current: u32,
 }
 
+#[derive(Debug)]
 pub struct ParseError {
     message: String,
 }
 
-impl ParseError {}
+impl ParseError {
+    pub fn new(msg: String) -> Self {
+        Self {
+            message: msg.to_string(),
+        }
+    }
+}
 
-// TODO: Change result into panic!()
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Option<Expr> {
+    pub fn parse(&mut self) -> Result<Expr, ParseError> {
         match self.expression() {
-            Ok(expr) => return Some(expr),
-            Err(_) => None,
+            Ok(expr) => return Ok(expr),
+            Err(err) => Err(ParseError::new(err.to_string())),
         }
     }
 
