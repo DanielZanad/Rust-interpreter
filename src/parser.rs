@@ -3,6 +3,7 @@ use std::{fmt::Error, rc::Rc};
 use crate::{
     expr::{Binary, Expr, Grouping, Literal, Unary},
     literal_object::Literal as LiteralValue,
+    stmt::{Expression, Print, Stmt},
     token::Token,
     token_type::TokenType::{self, *},
 };
@@ -30,11 +31,39 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Result<Expr, ParseError> {
-        match self.expression() {
-            Ok(expr) => return Ok(expr),
-            Err(err) => Err(ParseError::new(err.to_string())),
+    pub fn parse(&mut self) -> Vec<Stmt> {
+        let mut statements = Vec::new();
+
+        while !self.is_at_end() {
+            statements.push(self.statement());
         }
+
+        statements
+
+        // match self.expression() {
+        //     Ok(expr) => return Ok(expr),
+        //     Err(err) => Err(ParseError::new(err.to_string())),
+        // }
+    }
+
+    fn statement(&mut self) -> Stmt {
+        if self.match_token(vec![PRINT]) {
+            return self.print_statement();
+        }
+
+        return self.expression_statement();
+    }
+
+    fn print_statement(&mut self) -> Stmt {
+        let value = self.expression().unwrap();
+        self.consume(SEMICOLON, "Expect ';' after value.");
+        return Stmt::Print(Rc::new(Print::new(value)));
+    }
+
+    fn expression_statement(&mut self) -> Stmt {
+        let expr = self.expression().unwrap();
+        self.consume(SEMICOLON, "Expect ';' after expression");
+        Stmt::Expression(Rc::new(Expression::new(expr)))
     }
 
     fn expression(&mut self) -> Result<Expr, Error> {

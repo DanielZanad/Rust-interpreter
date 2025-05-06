@@ -16,6 +16,7 @@ mod interpreter;
 mod literal_object;
 mod parser;
 mod scanner;
+mod stmt;
 mod token;
 mod token_type;
 
@@ -55,20 +56,28 @@ fn run(source: &str) {
     let tokens = scanner.scan_tokens();
     // Todo: add lifetimes to avoid clone
     let mut parser = Parser::new(tokens.clone());
-    let expression = parser.parse();
+    let statements = parser.parse();
 
-    match expression {
-        Ok(expr) => {
-            let interpreter: Interpreter = Interpreter::new();
-            unsafe {
-                if HAD_ERROR {
-                    return;
-                }
-            }
-            interpreter.interpret(expr);
+    unsafe {
+        if HAD_ERROR {
+            return;
         }
-        Err(err) => println!("{:?}", err),
     }
+
+    let interpreter: Interpreter = Interpreter::new();
+    interpreter.interpret(statements);
+    // match expression {
+    //     Ok(expr) => {
+    //         let interpreter: Interpreter = Interpreter::new();
+    //         unsafe {
+    //             if HAD_ERROR {
+    //                 return;
+    //             }
+    //         }
+    //         interpreter.interpret(expr);
+    //     }
+    //     Err(err) => println!("{:?}", err),
+    // }
 }
 
 fn run_prompt() {

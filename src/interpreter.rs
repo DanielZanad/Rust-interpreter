@@ -1,7 +1,6 @@
-use std::fmt::Error;
-
-use crate::expr::{Accept, Expr, Visitor};
+use crate::expr::{Accept as AcceptExpr, Expr, Visitor};
 use crate::literal_object::Literal;
+use crate::stmt::{Accept as AcceptStmt, Stmt, Visitor as VisitorStmt};
 use crate::token::Token;
 use crate::token_type::TokenType;
 
@@ -21,6 +20,18 @@ impl RuntimeError {
 }
 
 pub struct Interpreter {}
+
+impl VisitorStmt<()> for Interpreter {
+    fn visit_expression_stmt(&self, stmt: &crate::stmt::Expression) -> () {
+        self.evaluate(stmt.expression());
+    }
+
+    fn visit_print_stmt(&self, stmt: &crate::stmt::Print) -> () {
+        let value = self.evaluate(stmt.expression()).unwrap();
+        println!("{}", self.stringify(value));
+        ()
+    }
+}
 
 impl Visitor<Result<Literal, RuntimeError>> for Interpreter {
     fn visit_binary_expr(&self, expr: &crate::expr::Binary) -> Result<Literal, RuntimeError> {
@@ -128,13 +139,24 @@ impl Interpreter {
         Interpreter {}
     }
 
-    pub fn interpret(&self, expression: Expr) {
-        let value = self.evaluate(&expression);
-        let _ = match value {
-            Ok(value) => println!("Value: {}", self.stringify(value)),
-            Err(err) => {
-                crate::run_time_error(err);
-            }
+    pub fn interpret(&self, statements: Vec<Stmt>) {
+        for statement in statements {
+            self.execute(statement)
+        }
+
+        // let value = self.evaluate(&expression);
+        // let _ = match value {
+        //     Ok(value) => println!("Value: {}", self.stringify(value)),
+        //     Err(err) => {
+        //         crate::run_time_error(err);
+        //     }
+        // };
+    }
+
+    pub fn execute(&self, stmt: Stmt) {
+        match stmt {
+            Stmt::Expression(expression) => expression.accept(self),
+            Stmt::Print(print) => print.accept(self),
         };
     }
 
