@@ -1,4 +1,4 @@
-use std::{env, fs, process::exit};
+use std::{collections::HashMap, env, fs, process::exit};
 
 use ast_printer::AstPrinter;
 use interpreter::{Interpreter, RuntimeError};
@@ -11,6 +11,7 @@ static mut HAD_ERROR: bool = false;
 static mut HAD_RUNTIME_ERROR: bool = false;
 
 mod ast_printer;
+mod environment;
 mod expr;
 mod interpreter;
 mod literal_object;
@@ -63,8 +64,7 @@ fn run(source: &str) {
             return;
         }
     }
-
-    let interpreter: Interpreter = Interpreter::new();
+    let mut interpreter: Interpreter = Interpreter::new();
     interpreter.interpret(statements);
     // match expression {
     //     Ok(expr) => {
@@ -81,6 +81,7 @@ fn run(source: &str) {
 }
 
 fn run_prompt() {
+    let mut interpreter: Interpreter = Interpreter::new();
     loop {
         let mut input = String::new();
         print!("> ");
@@ -92,7 +93,19 @@ fn run_prompt() {
         }
 
         println!("Input: {}", input);
-        run(&input);
+        let mut scanner = Scanner::default(&input);
+        let tokens = scanner.scan_tokens();
+        // Todo: add lifetimes to avoid clone
+        let mut parser = Parser::new(tokens.clone());
+        let statements = parser.parse();
+
+        unsafe {
+            if HAD_ERROR {
+                return;
+            }
+        }
+
+        interpreter.interpret(statements);
         unsafe {
             HAD_ERROR = false;
         }

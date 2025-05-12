@@ -1,9 +1,9 @@
-use std::{fmt::Error, rc::Rc};
+use std::{clone, fmt::Error, rc::Rc};
 
 use crate::{
-    expr::{Binary, Expr, Grouping, Literal, Unary},
+    expr::{Binary, Expr, Grouping, Literal, Unary, Variable},
     literal_object::Literal as LiteralValue,
-    stmt::{Expression, Print, Stmt},
+    stmt::{Expression, Print, Stmt, Var},
     token::Token,
     token_type::TokenType::{self, *},
 };
@@ -35,7 +35,7 @@ impl Parser {
         let mut statements = Vec::new();
 
         while !self.is_at_end() {
-            statements.push(self.statement());
+            statements.push(self.declaration().unwrap());
         }
 
         statements
@@ -60,6 +60,29 @@ impl Parser {
         return Stmt::Print(Rc::new(Print::new(value)));
     }
 
+    fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
+        if let Ok(name) = self.consume(IDENTIFIER, "Expect variable name.") {
+            let mut initializer = None;
+            let name = name.clone();
+
+            if self.match_token(vec![EQUAL]) {
+                initializer = Some(self.expression());
+            }
+            self.consume(SEMICOLON, "Expect ';' after variable declaration");
+            match initializer {
+                Some(initializer) => Ok(Stmt::Var(Rc::new(Var::new(
+                    name.clone(),
+                    initializer.unwrap_or_else(|_| {
+                        Expr::Literal(Rc::new(Literal::new(LiteralValue::Null)))
+                    }),
+                )))),
+                None => Err(ParseError::new("Error when parsing".to_string())),
+            }
+        } else {
+            Err(ParseError::new("Error when parsing".to_string()))
+        }
+    }
+
     fn expression_statement(&mut self) -> Stmt {
         let expr = self.expression().unwrap();
         self.consume(SEMICOLON, "Expect ';' after expression");
@@ -68,6 +91,17 @@ impl Parser {
 
     fn expression(&mut self) -> Result<Expr, Error> {
         return self.equality();
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_token(vec![VAR]) {
+            match self.var_declaration() {
+                Ok(stmt) => return Ok(stmt),
+                Err(error) => return Err(error),
+            }
+        }
+
+        return Ok(self.statement());
     }
 
     fn equality(&mut self) -> Result<Expr, Error> {
@@ -177,6 +211,12 @@ impl Parser {
         if self.match_token(vec![NUMBER, STRING]) {
             return Ok(Expr::Literal(Rc::new(Literal::new(
                 self.previous().literal.clone(),
+            ))));
+        }
+
+        if self.match_token(vec![IDENTIFIER]) {
+            return Ok(Expr::Variable(Rc::new(Variable::new(
+                self.previous().clone(),
             ))));
         }
 

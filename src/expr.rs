@@ -1,12 +1,13 @@
 use std::rc::Rc;
 
-use crate::{literal_object::Literal as LiteralValue, token::Token};
+use crate::{literal_object::Literal as LiteralValue, stmt::Var, token::Token};
 
 pub enum Expr {
     Binary(Rc<Binary>),
     Grouping(Rc<Grouping>),
     Literal(Rc<Literal>),
     Unary(Rc<Unary>),
+    Variable(Rc<Variable>),
 }
 
 pub trait Accept {
@@ -18,6 +19,7 @@ pub trait Visitor<R> {
     fn visit_grouping_expr(&self, expr: &Grouping) -> R;
     fn visit_literal_expr(&self, expr: &Literal) -> R;
     fn visit_unary_expr(&self, expr: &Unary) -> R;
+    fn visit_variable_expr(&self, expr: &Variable) -> R;
 }
 
 pub struct Binary {
@@ -37,6 +39,10 @@ pub struct Literal {
 pub struct Unary {
     operator: Token,
     right: Expr,
+}
+
+pub struct Variable {
+    name: Token,
 }
 
 impl Accept for Binary {
@@ -60,6 +66,12 @@ impl Accept for Literal {
 impl Accept for Unary {
     fn accept<R>(&self, visitor: &dyn Visitor<R>) -> R {
         visitor.visit_unary_expr(self)
+    }
+}
+
+impl Accept for Variable {
+    fn accept<R>(&self, visitor: &dyn Visitor<R>) -> R {
+        visitor.visit_variable_expr(self)
     }
 }
 
@@ -116,5 +128,15 @@ impl Unary {
 
     pub fn right(&self) -> &Expr {
         &self.right
+    }
+}
+
+impl Variable {
+    pub fn new(name: Token) -> Self {
+        Self { name }
+    }
+
+    pub fn name(&self) -> &Token {
+        &self.name
     }
 }

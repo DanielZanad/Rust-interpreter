@@ -29,6 +29,10 @@ impl Visitor<String> for AstPrinter {
     fn visit_unary_expr(&self, expr: &Unary) -> String {
         self.parenthesize(&expr.operator().lexeme, &[expr.right()])
     }
+
+    fn visit_variable_expr(&self, expr: &crate::expr::Variable) -> String {
+        todo!()
+    }
 }
 
 impl AstPrinter {
@@ -38,6 +42,7 @@ impl AstPrinter {
             Expr::Grouping(grouping) => grouping.accept(self),
             Expr::Literal(literal) => literal.accept(self),
             Expr::Unary(unary) => unary.accept(self),
+            Expr::Variable(variable) => todo!(),
         }
     }
 

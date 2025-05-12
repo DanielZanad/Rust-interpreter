@@ -1,3 +1,6 @@
+use std::env::var;
+
+use crate::environment::Environment;
 use crate::expr::{Accept as AcceptExpr, Expr, Visitor};
 use crate::literal_object::Literal;
 use crate::stmt::{Accept as AcceptStmt, Stmt, Visitor as VisitorStmt};
@@ -19,16 +22,25 @@ impl RuntimeError {
     }
 }
 
-pub struct Interpreter {}
+pub struct Interpreter {
+    pub environment: Environment,
+}
 
 impl VisitorStmt<()> for Interpreter {
     fn visit_expression_stmt(&self, stmt: &crate::stmt::Expression) -> () {
-        self.evaluate(stmt.expression());
+        let _ = self.evaluate(stmt.expression());
     }
 
     fn visit_print_stmt(&self, stmt: &crate::stmt::Print) -> () {
         let value = self.evaluate(stmt.expression()).unwrap();
         println!("{}", self.stringify(value));
+        ()
+    }
+
+    fn visit_var_stmt(&mut self, stmt: &crate::stmt::Var) -> () {
+        let value = self.evaluate(stmt.initializer()).unwrap();
+
+        self.environment.define(&stmt.name().lexeme, value);
         ()
     }
 }
@@ -132,14 +144,20 @@ impl Visitor<Result<Literal, RuntimeError>> for Interpreter {
             )),
         }
     }
+
+    fn visit_variable_expr(&self, expr: &crate::expr::Variable) -> Result<Literal, RuntimeError> {
+        self.environment.get(expr.name().clone())
+    }
 }
 
 impl Interpreter {
     pub fn new() -> Self {
-        Interpreter {}
+        Interpreter {
+            environment: Environment::new(),
+        }
     }
 
-    pub fn interpret(&self, statements: Vec<Stmt>) {
+    pub fn interpret(&mut self, statements: Vec<Stmt>) {
         for statement in statements {
             self.execute(statement)
         }
@@ -153,10 +171,11 @@ impl Interpreter {
         // };
     }
 
-    pub fn execute(&self, stmt: Stmt) {
+    pub fn execute(&mut self, stmt: Stmt) {
         match stmt {
             Stmt::Expression(expression) => expression.accept(self),
             Stmt::Print(print) => print.accept(self),
+            Stmt::Var(var) => var.accept(self),
         };
     }
 
@@ -166,6 +185,7 @@ impl Interpreter {
             Expr::Grouping(grouping) => grouping.accept(self),
             Expr::Literal(literal) => literal.accept(self),
             Expr::Unary(unary) => unary.accept(self),
+            Expr::Variable(variable) => variable.accept(self),
         }
     }
 

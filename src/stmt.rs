@@ -1,19 +1,21 @@
 use std::rc::Rc;
 
-use crate::expr::Expr;
+use crate::{expr::Expr, token::Token};
 
 pub enum Stmt {
     Expression(Rc<Expression>),
     Print(Rc<Print>),
+    Var(Rc<Var>),
 }
 
 pub trait Accept {
-    fn accept<R>(&self, visitor: &dyn Visitor<R>) -> R;
+    fn accept<R>(&self, visitor: &mut dyn Visitor<R>) -> R;
 }
 
 pub trait Visitor<R> {
     fn visit_expression_stmt(&self, stmt: &Expression) -> R;
     fn visit_print_stmt(&self, stmt: &Print) -> R;
+    fn visit_var_stmt(&mut self, stmt: &Var) -> R;
 }
 
 pub struct Expression {
@@ -24,15 +26,26 @@ pub struct Print {
     expression: Expr,
 }
 
+pub struct Var {
+    name: Token,
+    initializer: Expr,
+}
+
 impl Accept for Expression {
-    fn accept<R>(&self, visitor: &dyn Visitor<R>) -> R {
+    fn accept<R>(&self, visitor: &mut dyn Visitor<R>) -> R {
         visitor.visit_expression_stmt(self)
     }
 }
 
 impl Accept for Print {
-    fn accept<R>(&self, visitor: &dyn Visitor<R>) -> R {
+    fn accept<R>(&self, visitor: &mut dyn Visitor<R>) -> R {
         visitor.visit_print_stmt(self)
+    }
+}
+
+impl Accept for Var {
+    fn accept<R>(&self, visitor: &mut dyn Visitor<R>) -> R {
+        visitor.visit_var_stmt(self)
     }
 }
 
@@ -53,5 +66,19 @@ impl Print {
 
     pub fn expression(&self) -> &Expr {
         &self.expression
+    }
+}
+
+impl Var {
+    pub fn new(name: Token, initializer: Expr) -> Self {
+        Var { name, initializer }
+    }
+
+    pub fn name(&self) -> &Token {
+        &self.name
+    }
+
+    pub fn initializer(&self) -> &Expr {
+        &self.initializer
     }
 }
