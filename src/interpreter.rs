@@ -1,4 +1,7 @@
+use std::cell::RefCell;
 use std::env::var;
+use std::rc::Rc;
+use std::result;
 
 use crate::environment::Environment;
 use crate::expr::{Accept as AcceptExpr, Expr, Visitor};
@@ -26,27 +29,48 @@ pub struct Interpreter {
     pub environment: Environment,
 }
 
-impl VisitorStmt<()> for Interpreter {
-    fn visit_expression_stmt(&self, stmt: &crate::stmt::Expression) -> () {
-        let _ = self.evaluate(stmt.expression());
+impl VisitorStmt<Result<(), RuntimeError>> for Interpreter {
+    fn visit_expression_stmt(
+        &mut self,
+        stmt: &crate::stmt::Expression,
+    ) -> Result<(), RuntimeError> {
+        let result = self.evaluate(stmt.expression());
+        match result {
+            Ok(_) => Ok(()),
+            Err(error) => Err(error),
+        }
     }
 
-    fn visit_print_stmt(&self, stmt: &crate::stmt::Print) -> () {
-        let value = self.evaluate(stmt.expression()).unwrap();
-        println!("{}", self.stringify(value));
-        ()
+    fn visit_print_stmt(&mut self, stmt: &crate::stmt::Print) -> Result<(), RuntimeError> {
+        let value = self.evaluate(stmt.expression());
+        match value {
+            Ok(value) => {
+                println!("{}", self.stringify(value));
+                Ok(())
+            }
+            Err(error) => Err(error),
+        }
     }
 
-    fn visit_var_stmt(&mut self, stmt: &crate::stmt::Var) -> () {
-        let value = self.evaluate(stmt.initializer()).unwrap();
+    fn visit_var_stmt(&mut self, stmt: &crate::stmt::Var) -> Result<(), RuntimeError> {
+        let value = self.evaluate(stmt.initializer());
+        match value {
+            Ok(value) => {
+                self.environment.define(&stmt.name().lexeme, value);
+                Ok(())
+            }
+            Err(error) => Err(error),
+        }
+    }
 
-        self.environment.define(&stmt.name().lexeme, value);
-        ()
+    fn visit_block_stmt(&mut self, stmt: &crate::stmt::Block) -> Result<(), RuntimeError> {
+        let new_env = Environment::new_enclosed(Rc::new(RefCell::new(self.environment.clone())));
+        self.execute_block(stmt.statements().to_vec(), new_env)
     }
 }
 
 impl Visitor<Result<Literal, RuntimeError>> for Interpreter {
-    fn visit_binary_expr(&self, expr: &crate::expr::Binary) -> Result<Literal, RuntimeError> {
+    fn visit_binary_expr(&mut self, expr: &crate::expr::Binary) -> Result<Literal, RuntimeError> {
         let left = self.evaluate(expr.left())?;
         let right = self.evaluate(expr.right())?;
         match expr.operator().type_ {
@@ -112,7 +136,10 @@ impl Visitor<Result<Literal, RuntimeError>> for Interpreter {
         }
     }
 
-    fn visit_grouping_expr(&self, expr: &crate::expr::Grouping) -> Result<Literal, RuntimeError> {
+    fn visit_grouping_expr(
+        &mut self,
+        expr: &crate::expr::Grouping,
+    ) -> Result<Literal, RuntimeError> {
         Ok(self.evaluate(&expr.expression())?)
     }
 
@@ -120,7 +147,7 @@ impl Visitor<Result<Literal, RuntimeError>> for Interpreter {
         Ok(expr.value().clone())
     }
 
-    fn visit_unary_expr(&self, expr: &crate::expr::Unary) -> Result<Literal, RuntimeError> {
+    fn visit_unary_expr(&mut self, expr: &crate::expr::Unary) -> Result<Literal, RuntimeError> {
         let right = self.evaluate(expr.right());
 
         match expr.operator().type_ {
@@ -145,23 +172,44 @@ impl Visitor<Result<Literal, RuntimeError>> for Interpreter {
         }
     }
 
-    fn visit_variable_expr(&self, expr: &crate::expr::Variable) -> Result<Literal, RuntimeError> {
+    fn visit_variable_expr(
+        &mut self,
+        expr: &crate::expr::Variable,
+    ) -> Result<Literal, RuntimeError> {
         self.environment.get(expr.name().clone())
+    }
+
+    fn visit_assign_expr(&mut self, expr: &crate::expr::Assign) -> Result<Literal, RuntimeError> {
+        let value = self.evaluate(expr.value());
+        match value {
+            Ok(value) => {
+                if let Err(err) = self.environment.assign(expr.name().clone(), value.clone()) {
+                    return Err(err);
+                }
+                Ok(value)
+            }
+            Err(_) => Err(RuntimeError::new(
+                expr.name().clone(),
+                "Assign expression error",
+            )),
+        }
     }
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
-            environment: Environment::new(),
+            environment: Environment::new(None),
         }
     }
 
-    pub fn interpret(&mut self, statements: Vec<Stmt>) {
+    pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<(), RuntimeError> {
         for statement in statements {
-            self.execute(statement)
+            if let Err(error) = self.execute(statement) {
+                return Err(error);
+            }
         }
-
+        Ok(())
         // let value = self.evaluate(&expression);
         // let _ = match value {
         //     Ok(value) => println!("Value: {}", self.stringify(value)),
@@ -171,21 +219,45 @@ impl Interpreter {
         // };
     }
 
-    pub fn execute(&mut self, stmt: Stmt) {
+    pub fn execute(&mut self, stmt: Stmt) -> Result<(), RuntimeError> {
         match stmt {
-            Stmt::Expression(expression) => expression.accept(self),
+            Stmt::Expression(expression) => return expression.accept(self),
             Stmt::Print(print) => print.accept(self),
             Stmt::Var(var) => var.accept(self),
-        };
+            Stmt::Block(block) => block.accept(self),
+        }
     }
 
-    fn evaluate(&self, expr: &Expr) -> Result<Literal, RuntimeError> {
+    fn execute_block(
+        &mut self,
+        statements: Vec<Stmt>,
+        environment: Environment,
+    ) -> Result<(), RuntimeError> {
+        let actual = self.environment.clone();
+        let previous = self.environment.clone();
+        match actual.into() {
+            Some(_) => {
+                self.environment = environment;
+
+                for statement in statements {
+                    self.execute(statement)?;
+                }
+
+                self.environment = previous;
+                Ok(())
+            }
+            None => Ok(()),
+        }
+    }
+
+    fn evaluate(&mut self, expr: &Expr) -> Result<Literal, RuntimeError> {
         match expr {
             Expr::Binary(binary) => binary.accept(self),
             Expr::Grouping(grouping) => grouping.accept(self),
             Expr::Literal(literal) => literal.accept(self),
             Expr::Unary(unary) => unary.accept(self),
             Expr::Variable(variable) => variable.accept(self),
+            Expr::Assign(assign) => assign.accept(self),
         }
     }
 

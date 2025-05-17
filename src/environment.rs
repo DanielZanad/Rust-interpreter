@@ -1,15 +1,25 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{interpreter::RuntimeError, literal_object::Literal, token::Token};
 
+#[derive(Clone)]
 pub struct Environment {
     pub values: HashMap<String, Literal>,
+    pub enclosing: Option<Rc<RefCell<Environment>>>,
 }
 
 impl Environment {
-    pub fn new() -> Self {
+    pub fn new(enclosing: Option<Rc<RefCell<Environment>>>) -> Self {
         Environment {
             values: HashMap::new(),
+            enclosing,
+        }
+    }
+
+    pub fn new_enclosed(enclosing: Rc<RefCell<Environment>>) -> Self {
+        Environment {
+            values: HashMap::new(),
+            enclosing: Some(enclosing),
         }
     }
 
@@ -17,18 +27,29 @@ impl Environment {
         self.values.insert(name.to_string(), value);
     }
 
-    pub fn get(&self, name: Token) -> Result<Literal, RuntimeError> {
+    pub fn assign(&mut self, name: Token, value: Literal) -> Result<(), RuntimeError> {
         if self.values.contains_key(&name.lexeme) {
-            if let Some(literal) = self.values.get(&name.lexeme) {
-                println!("getting literal: {:?}", literal);
+            self.values.insert(name.lexeme.clone(), value);
+            return Ok(());
+        }
 
-                return Ok(literal.clone());
-            } else {
-                return Err(RuntimeError::new(
-                    name.clone(),
-                    &format!("Undefined variable '{}'.", name.lexeme),
-                ));
-            }
+        if let Some(ref enclosing) = self.enclosing {
+            return enclosing.borrow_mut().assign(name, value);
+        }
+
+        Err(RuntimeError::new(
+            name.clone(),
+            &format!("Undefined variable '{}'.", name.lexeme),
+        ))
+    }
+
+    pub fn get(&self, name: Token) -> Result<Literal, RuntimeError> {
+        if let Some(val) = self.values.get(&name.lexeme) {
+            return Ok(val.clone());
+        }
+
+        if let Some(ref enclosing) = self.enclosing {
+            return enclosing.borrow().get(name);
         }
 
         Err(RuntimeError::new(

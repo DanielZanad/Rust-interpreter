@@ -1,9 +1,9 @@
 use std::{clone, fmt::Error, rc::Rc};
 
 use crate::{
-    expr::{Binary, Expr, Grouping, Literal, Unary, Variable},
+    expr::{Assign, Binary, Expr, Grouping, Literal, Unary, Variable},
     literal_object::Literal as LiteralValue,
-    stmt::{Expression, Print, Stmt, Var},
+    stmt::{Block, Expression, Print, Stmt, Var},
     token::Token,
     token_type::TokenType::{self, *},
 };
@@ -50,6 +50,9 @@ impl Parser {
         if self.match_token(vec![PRINT]) {
             return self.print_statement();
         }
+        if self.match_token(vec![LEFT_BRACE]) {
+            return Stmt::Block(Rc::new(Block::new(self.block())));
+        }
 
         return self.expression_statement();
     }
@@ -89,8 +92,56 @@ impl Parser {
         Stmt::Expression(Rc::new(Expression::new(expr)))
     }
 
-    fn expression(&mut self) -> Result<Expr, Error> {
-        return self.equality();
+    fn block(&mut self) -> Vec<Stmt> {
+        let mut statements = Vec::new();
+
+        while !self.check(RIGHT_BRACE) && !self.is_at_end() {
+            statements.push(self.declaration().unwrap());
+        }
+
+        self.consume(RIGHT_BRACE, "Expect '}' after block");
+        statements
+    }
+
+    fn assignment(&mut self) -> Result<Expr, ParseError> {
+        let expr = self.equality();
+
+        if self.match_token(vec![EQUAL]) {
+            let equals = self.previous();
+            let equals = equals.clone();
+            let value = self.assignment();
+
+            match expr {
+                Ok(ref expr) => match expr {
+                    Expr::Variable(variable) => {
+                        let name = variable.name();
+                        match value {
+                            Ok(value) => {
+                                return Ok(Expr::Assign(Rc::new(Assign::new(name.clone(), value))))
+                            }
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    _ => {
+                        crate::token_error(&equals, "Invalid assignment target");
+                        return Err(ParseError {
+                            message: "Invalid assignment target".to_string(),
+                        });
+                    }
+                },
+                Err(_) => {
+                    crate::token_error(&equals, "Invalid assignment target");
+                    return Err(ParseError {
+                        message: "Invalid assignment target".to_string(),
+                    });
+                }
+            }
+        }
+        return expr;
+    }
+
+    fn expression(&mut self) -> Result<Expr, ParseError> {
+        return self.assignment();
     }
 
     fn declaration(&mut self) -> Result<Stmt, ParseError> {
@@ -104,7 +155,7 @@ impl Parser {
         return Ok(self.statement());
     }
 
-    fn equality(&mut self) -> Result<Expr, Error> {
+    fn equality(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.comparison();
 
         while self.match_token(vec![BANG_EQUAL, EQUAL_EQUAL]) {
@@ -119,11 +170,13 @@ impl Parser {
 
         match expr {
             Ok(expr) => Ok(expr),
-            Err(error) => Err(error),
+            Err(_) => Err(ParseError::new(
+                "Error parsing equality expression".to_string(),
+            )),
         }
     }
 
-    fn comparison(&mut self) -> Result<Expr, Error> {
+    fn comparison(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.term();
 
         while self.match_token(vec![GREATER, GREATER_EQUAL, LESS, LESS_EQUAL]) {
@@ -142,7 +195,7 @@ impl Parser {
         }
     }
 
-    fn term(&mut self) -> Result<Expr, Error> {
+    fn term(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.factor();
 
         while self.match_token(vec![MINUS, PLUS]) {
@@ -161,7 +214,7 @@ impl Parser {
         }
     }
 
-    fn factor(&mut self) -> Result<Expr, Error> {
+    fn factor(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.unary();
 
         while self.match_token(vec![SLASH, STAR]) {
@@ -176,11 +229,13 @@ impl Parser {
 
         match expr {
             Ok(expr) => Ok(expr),
-            Err(error) => Err(error),
+            Err(_) => Err(ParseError::new(
+                "Error parsing a factor expression".to_string(),
+            )),
         }
     }
 
-    fn unary(&mut self) -> Result<Expr, Error> {
+    fn unary(&mut self) -> Result<Expr, ParseError> {
         if self.match_token(vec![BANG, MINUS]) {
             let operator = self.previous().clone();
             let right = self.unary()?;
@@ -189,11 +244,13 @@ impl Parser {
 
         match self.primary() {
             Ok(expr) => Ok(expr),
-            Err(err) => Err(err),
+            Err(_) => Err(ParseError::new(
+                "Error parsing a unary expression".to_string(),
+            )),
         }
     }
 
-    fn primary(&mut self) -> Result<Expr, Error> {
+    fn primary(&mut self) -> Result<Expr, ParseError> {
         if self.match_token(vec![FALSE]) {
             return Ok(Expr::Literal(Rc::new(Literal::new(LiteralValue::Boolean(
                 false,
@@ -223,14 +280,25 @@ impl Parser {
         if self.match_token(vec![LEFT_PAREN]) {
             let expr = self.expression();
             match self.consume(RIGHT_PAREN, "Expect ')' after expression") {
-                Ok(_) => {
-                    return Ok(Expr::Grouping(Rc::new(Grouping::new(expr?))));
+                Ok(_) => match expr {
+                    Ok(expr) => return Ok(Expr::Grouping(Rc::new(Grouping::new(expr)))),
+                    Err(_) => {
+                        return Err(ParseError::new(
+                            "Error parsing a primary expression".to_string(),
+                        ))
+                    }
+                },
+                Err(error) => {
+                    return Err(ParseError::new(
+                        "Error parsing a primary expression".to_string(),
+                    ))
                 }
-                Err(error) => return Err(error),
             };
         }
         self.error(self.peek(), "Expect expression");
-        Err(Error)
+        Err(ParseError::new(
+            "Error parsing a primary expression".to_string(),
+        ))
     }
 
     fn consume(&mut self, type_: TokenType, message: &'static str) -> Result<&Token, Error> {

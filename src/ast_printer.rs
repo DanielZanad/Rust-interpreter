@@ -9,11 +9,11 @@ use crate::{
 pub struct AstPrinter;
 
 impl Visitor<String> for AstPrinter {
-    fn visit_binary_expr(&self, expr: &Binary) -> String {
+    fn visit_binary_expr(&mut self, expr: &Binary) -> String {
         self.parenthesize(&expr.operator().lexeme, &[expr.left(), expr.right()])
     }
 
-    fn visit_grouping_expr(&self, expr: &Grouping) -> String {
+    fn visit_grouping_expr(&mut self, expr: &Grouping) -> String {
         self.parenthesize("group", &[expr.expression()])
     }
 
@@ -26,27 +26,32 @@ impl Visitor<String> for AstPrinter {
         }
     }
 
-    fn visit_unary_expr(&self, expr: &Unary) -> String {
+    fn visit_unary_expr(&mut self, expr: &Unary) -> String {
         self.parenthesize(&expr.operator().lexeme, &[expr.right()])
     }
 
-    fn visit_variable_expr(&self, expr: &crate::expr::Variable) -> String {
+    fn visit_variable_expr(&mut self, expr: &crate::expr::Variable) -> String {
+        todo!()
+    }
+
+    fn visit_assign_expr(&mut self, expr: &crate::expr::Assign) -> String {
         todo!()
     }
 }
 
 impl AstPrinter {
-    pub fn print(&self, expr: &Expr) -> String {
+    pub fn print(&mut self, expr: &Expr) -> String {
         match expr {
             Expr::Binary(binary) => binary.accept(self),
             Expr::Grouping(grouping) => grouping.accept(self),
             Expr::Literal(literal) => literal.accept(self),
             Expr::Unary(unary) => unary.accept(self),
             Expr::Variable(variable) => todo!(),
+            Expr::Assign(assign) => todo!(),
         }
     }
 
-    fn parenthesize(&self, name: &str, exprs: &[&Expr]) -> String {
+    fn parenthesize(&mut self, name: &str, exprs: &[&Expr]) -> String {
         let mut builder = String::new();
 
         builder.push_str("(");
@@ -89,7 +94,7 @@ pub fn print_ast() {
         Expr::Grouping(Rc::new(grouping)),
     )));
 
-    let ast_printer = AstPrinter;
+    let mut ast_printer = AstPrinter;
 
     println!("{}", ast_printer.print(&expr))
 }

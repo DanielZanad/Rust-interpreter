@@ -56,6 +56,7 @@ fn run(source: &str) {
     let mut scanner = Scanner::default(source);
     let tokens = scanner.scan_tokens();
     // Todo: add lifetimes to avoid clone
+
     let mut parser = Parser::new(tokens.clone());
     let statements = parser.parse();
 
@@ -65,7 +66,11 @@ fn run(source: &str) {
         }
     }
     let mut interpreter: Interpreter = Interpreter::new();
-    interpreter.interpret(statements);
+    let result = interpreter.interpret(statements);
+    match result {
+        Ok(_) => {}
+        Err(error) => panic!("{}", error.message),
+    }
     // match expression {
     //     Ok(expr) => {
     //         let interpreter: Interpreter = Interpreter::new();
@@ -95,6 +100,7 @@ fn run_prompt() {
         println!("Input: {}", input);
         let mut scanner = Scanner::default(&input);
         let tokens = scanner.scan_tokens();
+
         // Todo: add lifetimes to avoid clone
         let mut parser = Parser::new(tokens.clone());
         let statements = parser.parse();
