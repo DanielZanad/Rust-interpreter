@@ -1,4 +1,4 @@
-use std::{clone, fmt::Error, rc::Rc};
+use std::rc::Rc;
 
 use crate::{
     expr::{Assign, Binary, Expr, Grouping, Literal, Unary, Variable},
@@ -15,7 +15,7 @@ pub struct Parser {
 
 #[derive(Debug)]
 pub struct ParseError {
-    message: String,
+    pub message: String,
 }
 
 impl ParseError {
@@ -31,14 +31,17 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Vec<Stmt> {
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParseError> {
         let mut statements = Vec::new();
 
         while !self.is_at_end() {
-            statements.push(self.declaration().unwrap());
+            match self.declaration() {
+                Ok(stmt) => statements.push(stmt),
+                Err(_) => self.synchronize(),
+            }
         }
 
-        statements
+        Ok(statements)
 
         // match self.expression() {
         //     Ok(expr) => return Ok(expr),
@@ -46,21 +49,25 @@ impl Parser {
         // }
     }
 
-    fn statement(&mut self) -> Stmt {
+    fn statement(&mut self) -> Result<Stmt, ParseError> {
         if self.match_token(vec![PRINT]) {
             return self.print_statement();
         }
         if self.match_token(vec![LEFT_BRACE]) {
-            return Stmt::Block(Rc::new(Block::new(self.block())));
+            let statements = self.block();
+            match statements {
+                Ok(statements) => return Ok(Stmt::Block(Rc::new(Block::new(statements)))),
+                Err(error) => return Err(error),
+            }
         }
 
         return self.expression_statement();
     }
 
-    fn print_statement(&mut self) -> Stmt {
+    fn print_statement(&mut self) -> Result<Stmt, ParseError> {
         let value = self.expression().unwrap();
-        self.consume(SEMICOLON, "Expect ';' after value.");
-        return Stmt::Print(Rc::new(Print::new(value)));
+        self.consume(SEMICOLON, "Expect ';' after value.")?;
+        Ok(Stmt::Print(Rc::new(Print::new(value))))
     }
 
     fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
@@ -71,7 +78,7 @@ impl Parser {
             if self.match_token(vec![EQUAL]) {
                 initializer = Some(self.expression());
             }
-            self.consume(SEMICOLON, "Expect ';' after variable declaration");
+            self.consume(SEMICOLON, "Expect ';' after variable declaration")?;
             match initializer {
                 Some(initializer) => Ok(Stmt::Var(Rc::new(Var::new(
                     name.clone(),
@@ -86,21 +93,26 @@ impl Parser {
         }
     }
 
-    fn expression_statement(&mut self) -> Stmt {
-        let expr = self.expression().unwrap();
-        self.consume(SEMICOLON, "Expect ';' after expression");
-        Stmt::Expression(Rc::new(Expression::new(expr)))
+    fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
+        let expr = self.expression();
+        match expr {
+            Ok(expr) => match self.consume(SEMICOLON, "Expect ';' after expression") {
+                Ok(_) => Ok(Stmt::Expression(Rc::new(Expression::new(expr)))),
+                Err(error) => Err(error),
+            },
+            Err(error) => Err(error),
+        }
     }
 
-    fn block(&mut self) -> Vec<Stmt> {
+    fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
         let mut statements = Vec::new();
 
         while !self.check(RIGHT_BRACE) && !self.is_at_end() {
-            statements.push(self.declaration().unwrap());
+            statements.push(self.declaration()?);
         }
 
-        self.consume(RIGHT_BRACE, "Expect '}' after block");
-        statements
+        self.consume(RIGHT_BRACE, "Expect '}' after block")?;
+        Ok(statements)
     }
 
     fn assignment(&mut self) -> Result<Expr, ParseError> {
@@ -152,7 +164,10 @@ impl Parser {
             }
         }
 
-        return Ok(self.statement());
+        match self.statement() {
+            Ok(stmt) => Ok(stmt),
+            Err(error) => Err(error),
+        }
     }
 
     fn equality(&mut self) -> Result<Expr, ParseError> {
@@ -282,17 +297,9 @@ impl Parser {
             match self.consume(RIGHT_PAREN, "Expect ')' after expression") {
                 Ok(_) => match expr {
                     Ok(expr) => return Ok(Expr::Grouping(Rc::new(Grouping::new(expr)))),
-                    Err(_) => {
-                        return Err(ParseError::new(
-                            "Error parsing a primary expression".to_string(),
-                        ))
-                    }
+                    Err(error) => return Err(error),
                 },
-                Err(error) => {
-                    return Err(ParseError::new(
-                        "Error parsing a primary expression".to_string(),
-                    ))
-                }
+                Err(error) => return Err(error),
             };
         }
         self.error(self.peek(), "Expect expression");
@@ -301,16 +308,18 @@ impl Parser {
         ))
     }
 
-    fn consume(&mut self, type_: TokenType, message: &'static str) -> Result<&Token, Error> {
+    fn consume(&mut self, type_: TokenType, message: &'static str) -> Result<&Token, ParseError> {
         if self.check(type_) {
             return Ok(self.advance());
         }
         Err(self.error(self.peek(), message))
     }
 
-    fn error(&self, token: &Token, message: &'static str) -> Error {
+    fn error(&self, token: &Token, message: &'static str) -> ParseError {
         crate::token_error(token, message);
-        Error
+        ParseError {
+            message: message.to_string(),
+        }
     }
 
     fn match_token(&mut self, types: Vec<TokenType>) -> bool {

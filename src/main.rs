@@ -22,7 +22,6 @@ mod token;
 mod token_type;
 
 fn main() {
-    let interpreter: Interpreter = Interpreter::new();
     let args = env::args();
     if args.len() > 2 {
         println!("Usage: rlox [script]");
@@ -55,22 +54,30 @@ fn run_file(path: &str) {
 fn run(source: &str) {
     let mut scanner = Scanner::default(source);
     let tokens = scanner.scan_tokens();
+    let mut interpreter: Interpreter = Interpreter::new();
     // Todo: add lifetimes to avoid clone
 
     let mut parser = Parser::new(tokens.clone());
     let statements = parser.parse();
 
-    unsafe {
-        if HAD_ERROR {
-            return;
+    match statements {
+        Ok(stmts) => {
+            let result = interpreter.interpret(stmts);
+            match result {
+                Ok(_) => {}
+                Err(error) => panic!("{}", error.message),
+            }
+        }
+        Err(error) => {
+            unsafe {
+                if HAD_ERROR {
+                    return;
+                }
+            }
+            panic!("{}", error.message);
         }
     }
-    let mut interpreter: Interpreter = Interpreter::new();
-    let result = interpreter.interpret(statements);
-    match result {
-        Ok(_) => {}
-        Err(error) => panic!("{}", error.message),
-    }
+
     // match expression {
     //     Ok(expr) => {
     //         let interpreter: Interpreter = Interpreter::new();
@@ -105,15 +112,22 @@ fn run_prompt() {
         let mut parser = Parser::new(tokens.clone());
         let statements = parser.parse();
 
-        unsafe {
-            if HAD_ERROR {
-                return;
+        match statements {
+            Ok(stmts) => {
+                let result = interpreter.interpret(stmts);
+                match result {
+                    Ok(result) => {}
+                    Err(error) => panic!("{}", error.message),
+                }
             }
-        }
-
-        interpreter.interpret(statements);
-        unsafe {
-            HAD_ERROR = false;
+            Err(error) => {
+                unsafe {
+                    if HAD_ERROR {
+                        return;
+                    }
+                }
+                panic!("{}", error.message);
+            }
         }
     }
 }
