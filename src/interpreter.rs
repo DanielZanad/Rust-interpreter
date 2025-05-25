@@ -1,7 +1,5 @@
 use std::cell::RefCell;
-use std::env::var;
 use std::rc::Rc;
-use std::result;
 
 use crate::environment::Environment;
 use crate::expr::{Accept as AcceptExpr, Expr, Visitor};

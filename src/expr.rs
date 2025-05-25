@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{literal_object::Literal as LiteralValue, stmt::Var, token::Token};
+use crate::{literal_object::Literal as LiteralValue, token::Token};
 
 #[derive(Debug)]
 pub enum Expr {

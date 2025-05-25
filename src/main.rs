@@ -1,6 +1,5 @@
-use std::{collections::HashMap, env, fs, process::exit};
+use std::{env, fs, process::exit};
 
-use ast_printer::AstPrinter;
 use interpreter::{Interpreter, RuntimeError};
 use parser::Parser;
 use scanner::Scanner;
@@ -116,7 +115,7 @@ fn run_prompt() {
             Ok(stmts) => {
                 let result = interpreter.interpret(stmts);
                 match result {
-                    Ok(result) => {}
+                    Ok(_) => {}
                     Err(error) => panic!("{}", error.message),
                 }
             }

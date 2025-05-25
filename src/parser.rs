@@ -65,9 +65,13 @@ impl Parser {
     }
 
     fn print_statement(&mut self) -> Result<Stmt, ParseError> {
-        let value = self.expression().unwrap();
-        self.consume(SEMICOLON, "Expect ';' after value.")?;
-        Ok(Stmt::Print(Rc::new(Print::new(value))))
+        match self.expression() {
+            Ok(value) => {
+                self.consume(SEMICOLON, "Expect ';' after value.")?;
+                Ok(Stmt::Print(Rc::new(Print::new(value))))
+            }
+            Err(error) => Err(error),
+        }
     }
 
     fn var_declaration(&mut self) -> Result<Stmt, ParseError> {

@@ -1,2 +1,8 @@
-var c = 1 + 2 * 3;
-print(c);
+var a = 1;
+var b = 2;
+print(a + b);
+{
+  var a = 2;
+  var b = 2;
+  print(a + b);
+}
